@@ -1,51 +1,73 @@
 /// @file
-/// @ingroup  minexamples
-/// @copyright  Copyright 2020 Brad Osgood. All rights reserved.
+///	@ingroup 	minexamples
+///	@copyright	Copyright 2018 The Min-DevKit Authors. All rights reserved.
 ///	@license	Use of this source code is governed by the MIT License found in the License.md file.
 
 #include "c74_min.h"
 
 using namespace c74::min;
 
+
 class arp99 : public object<arp99> {
 public:
-  MIN_DESCRIPTION { "Pattern generator based on the Mutable Instruments Yarns module." };
-  MIN_TAGS { "time" };
-  MIN_AUTHOR { "bosgood" };
-  MIN_RELATED		{ "min.beat.random, link.beat, metro, tempo, drunk" };
+    MIN_DESCRIPTION	{ "Bang at intervals in a repeating pattern." };
+    MIN_TAGS		{ "time" };
+    MIN_AUTHOR		{ "Cycling '74" };
+    MIN_RELATED		{ "min.beat.random, link.beat, metro, tempo, drunk" };
 
-  inlet<> clock { this, "(bang) clock signal input" };
-  inlet<> pitch1_in { this, "(float) note 1 pitch" };
-  // inlet<> velocity1_in { this, "(float) note 1 velocity" };
-  // inlet<> pitch2_in { this, "(float) note 2 pitch" };
+    inlet<>  input			{ this, "(toggle) on/off brad asdfas" };
+    inlet<>  input2			{ this, "(toggle) on/off 2" };
+    outlet<> bang_out		{ this, "(bang) triggers at according to specified pattern" };
+    outlet<> interval_out	{ this, "(float) the interval for the current bang" };
 
-  outlet<> trig_out { this, "(bang) note trigger signal" };
-  outlet<> pitch_out { this, "(float) note pitch" };
+    timer<> metro { this,
+        MIN_FUNCTION {
+            double interval = m_sequence[m_index];
 
-//   timer<> metro { this,
-//     MIN_FUNCTION {
-//       cout << "metro" << endl;
-//       metro.delay(1000);
-//       pitch_out.send(0.0);
-//       trig_out.send("bang");
-//       return {};
-//     }
-//   };
+            interval_out.send(interval);
+            bang_out.send("bang");
 
-//   message<> bang { this, "bang",
-//     MIN_FUNCTION {
-//       cout << "bang received" << endl;
-//       return {};
-//     }
-//   };
+            metro.delay(interval);
 
-// private:
-//   // The beats per minute value as currently calculated from the
-//   // incoming clock signals
-//   int bpm = 120;
-//   // The timestamps of the few clocks signals received, used for
-//   // tempo calculation
-//   int clock_signals[3] { 0, 0, 0 };
+            m_index += 1;
+
+            if (m_index == m_sequence.size())
+              m_index = 0;
+            return {};
+        }
+    };
+
+    attribute<bool> on {this, "on", false,
+        description {"Turn on/off the internal timer."},
+        setter { MIN_FUNCTION {
+            if (args[0] == true)
+                metro.delay(0.0);    // fire the first one straight-away
+            else
+                metro.stop();
+            return args;
+        }}
+    };
+
+    message<> toggle { this, "int", "Turn on/off the internal timer.",
+        MIN_FUNCTION {
+            on = args[0];
+            return {};
+        }
+    };
+
+
+    message<> dictionary { this, "dictionary", "Use a dictionary to define the pattern of bangs produced.",
+        MIN_FUNCTION {
+            dict d {args[0]};
+
+            m_sequence = d["pattern"];
+            return {};
+        }
+    };
+
+private:
+    int   m_index		{ 0 };
+    atoms m_sequence	{ 250.0, 250.0, 250.0, 250.0, 500.0, 500.0, 500.0, 500.0 };
 };
 
 MIN_EXTERNAL(arp99);
