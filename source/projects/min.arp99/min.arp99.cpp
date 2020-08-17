@@ -3,6 +3,9 @@
 ///	@copyright	Copyright 2018 The Min-DevKit Authors. All rights reserved.
 ///	@license	Use of this source code is governed by the MIT License found in the License.md file.
 
+#include <chrono>
+#include <ctime>
+
 #include "c74_min.h"
 
 using namespace c74::min;
@@ -77,7 +80,17 @@ public:
     message<> clock { this, "bang", "Receive an incoming clock signal.",
         MIN_FUNCTION {
           cout << "Clock tick received" << endl;
-          // TODO [bosgood] Store datetimes of received signals
+          auto now = std::chrono::system_clock::now();
+          auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+          auto epoch = now_ms.time_since_epoch();
+          m_clock_signals[m_tick_index] = epoch;
+          m_tick_index = (m_tick_index + 1) % 3;
+
+          // Use the last few clock signals received to calculate
+          // the current tempo
+
+          // TODO [bosgood] Implement tempo calc
+
           return {};
         }
     };
@@ -87,7 +100,12 @@ private:
     double m_tempo { 120.0 };
     int m_index	{ 0 };
     int m_clock_div { 16 };
-    std::vector<int> m_clock_signals { 0, 0, 0 };
+    int m_tick_index { 0 };
+    std::vector<std::chrono::milliseconds> m_clock_signals {
+      std::chrono::milliseconds { 0 },
+      std::chrono::milliseconds { 0 },
+      std::chrono::milliseconds { 0 },
+    };
     atoms m_sequence	{ 250.0, 250.0, 250.0, 250.0, 500.0, 500.0, 500.0, 500.0 };
 };
 
