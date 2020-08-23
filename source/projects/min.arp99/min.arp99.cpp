@@ -10,6 +10,10 @@
 
 using namespace c74::min;
 
+struct Note {
+  int note;
+  int velocity;
+};
 
 class arp99 : public object<arp99> {
 public:
@@ -23,22 +27,23 @@ public:
     inlet<>  cc_in      { this, "(list) cc in" };
 
     outlet<> bang_out		{ this, "(bang) triggers at according to specified pattern" };
-    outlet<> note_out	{ this, "(float) the note value for the current bang" };
+    outlet<> note_out	{ this, "(list) the note and velocity value for the current bang" };
 
     timer<> metro { this,
         MIN_FUNCTION {
             // Given the current pattern index, send the note which is on
-            auto notes_on = note_on_values();
-            auto note_value = 0;
-            if (notes_on.size() > 0) {
-              note_value = notes_on[m_index];
+            auto notes = notes_on();
+            auto velocity_value = 0;
+            if (notes.size() > 0) {
+              velocity_value = notes[m_index].velocity;
             }
-            note_out.send(note_value);
+            atoms note_msg = { m_index, velocity_value };
+            note_out.send(note_msg);
             bang_out.send("bang");
 
             // Calculate millisecond delay interval from current beats per minute value
             auto ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
-            auto pattern_note_count = notes_on.size();
+            auto pattern_note_count = notes.size();
             cout <<
               "arp tick" << " (" <<
               "tempo=" << m_tempo << ", " <<
@@ -100,19 +105,19 @@ public:
         }}
     };
 
-    message<> list { this, "list", "Pitch input",
+    message<> list { this, "list", "Note input",
       MIN_FUNCTION {
         if (inlet == 1) {
-          // Args are pairs of (Pitch, Velocity)
+          // Args are pairs of (Note, Velocity)
           for (auto i = 0; i < args.size(); i += 2) {
-            auto pitch = args[i];
+            auto note = args[i];
             auto velocity = (int)args[i+1];
             if (velocity > 0) {
-              cout << "NOTEON " << pitch << endl;
-              m_notes[pitch] = velocity;
+              cout << "NOTEON " << note << endl;
+              m_notes[note] = velocity;
             } else {
-              cout << "NOTEOFF " << pitch << endl;
-              m_notes[pitch] = 0;
+              cout << "NOTEOFF " << note << endl;
+              m_notes[note] = 0;
             }
           }
         } else if (inlet == 2) {
@@ -127,15 +132,15 @@ public:
       }
     };
 
-    // Return the MIDI values of the notes which are enabled
-    std::vector<int> note_on_values() {
-      auto notes_on = std::vector<int>();
+    // Return the MIDI note and velocity values of the notes which are enabled
+    std::vector<Note> notes_on() {
+      auto on = std::vector<Note>();
       for (int i = 0; i < m_notes.size(); i++) {
         if (m_notes[i] > 0) {
-          notes_on.push_back(m_notes[i]);
+          on.push_back(Note{ i, m_notes[i] });
         }
       }
-      return notes_on;
+      return on;
     }
 
 private:
