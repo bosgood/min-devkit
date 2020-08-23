@@ -49,7 +49,9 @@ public:
               "tempo=" << m_tempo << ", " <<
               "clock_div=" << m_clock_div << ", " <<
               "delay=" << ms_delay << " ms" << ", " <<
-              "note=" << m_index << "/" << pattern_note_count <<
+              "note=" << note_msg[0] << ", " <<
+              "vel=" << note_msg[1] << ", " <<
+              "seq=" << m_index << "/" << pattern_note_count <<
               ")" << endl
             ;
 
