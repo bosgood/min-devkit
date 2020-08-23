@@ -53,12 +53,9 @@ public:
               m_index = (m_index + 1) % pattern_note_count;
             }
 
-            auto velocity_value = 0;
-            if (notes.size() > 0) {
-              velocity_value = notes[m_index].velocity;
-            }
-            atoms note_msg = { m_index, velocity_value };
-            note_out.send(note_msg);
+            auto note_value = notes[m_index].note;
+            auto velocity_value = notes[m_index].velocity;
+            note_out.send({ note_value, velocity_value });
             bang_out.send("bang");
 
             cout <<
@@ -66,8 +63,8 @@ public:
               "tempo=" << m_tempo << ", " <<
               "clock_div=" << m_clock_div << ", " <<
               "delay=" << ms_delay << " ms" << ", " <<
-              "note=" << note_msg[0] << ", " <<
-              "vel=" << note_msg[1] << ", " <<
+              "note=" << note_value << ", " <<
+              "vel=" << velocity_value << ", " <<
               "seq=" << m_index << "/" << pattern_note_count <<
               ")" << endl
             ;
