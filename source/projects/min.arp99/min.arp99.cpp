@@ -23,29 +23,37 @@ public:
     inlet<>  cc_in      { this, "(list) cc in" };
 
     outlet<> bang_out		{ this, "(bang) triggers at according to specified pattern" };
-    outlet<> pitch_out	{ this, "(float) the pitch value for the current bang" };
+    outlet<> note_out	{ this, "(float) the note value for the current bang" };
 
     timer<> metro { this,
         MIN_FUNCTION {
-            // double pitch = m_sequence[m_index];
-            // pitch_out.send(0);
+            // TODO [bosgood] Figure out which note value to output here
+            // int note_value = note_on_value();
+            // note_out.send(note_value);
             bang_out.send("bang");
 
             // Calculate millisecond delay interval from current beats per minute value
             double ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
+            int pattern_note_count = note_on_count();
             cout <<
               "arp tick" << " (" <<
               "tempo=" << m_tempo << ", " <<
               "clock_div=" << m_clock_div << ", " <<
-              "delay=" << ms_delay << " ms" <<
+              "delay=" << ms_delay << " ms" << ", " <<
+              "note=" << m_index << "/" << pattern_note_count <<
               ")" << endl
             ;
+
+            // Schedule the next metronome event after the time has elapsed
             metro.delay(ms_delay);
 
-            // m_index += 1;
+            // Rotate through the pattern
+            if (pattern_note_count == 0) {
+              m_index = 0;
+            } else {
+              m_index = (m_index + 1) % pattern_note_count;
+            }
 
-            // if (m_index == m_sequence.size())
-            //   m_index = 0;
             return {};
         }
     };
@@ -84,41 +92,6 @@ public:
         }}
     };
 
-    // message<> clock { this, "bang", "Receive an incoming clock signal.",
-    //     MIN_FUNCTION {
-    //       auto now = std::chrono::system_clock::now();
-    //       auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
-    //       auto epoch = now_ms.time_since_epoch();
-    //       m_clock_signals[m_tick_index] = epoch;
-
-    //       auto value = std::chrono::duration_cast<std::chrono::milliseconds>(epoch);
-    //       cout << "Clock tick received at " << value.count() << endl;
-    //       m_tick_index = (m_tick_index + 1) % 3;
-
-    //       // Use the last few clock signals received to calculate
-    //       // the current tempo
-
-    //       // TODO [bosgood] Implement tempo calc
-
-    //       return {};
-    //     }
-    // };
-
-    // message<> clock { this, "int", "Receive an incoming clock signal.",
-    //     MIN_FUNCTION {
-    //       cout << "Clock signal received" << endl;
-    //       return {};
-    //     }
-    // };
-
-    // message<> tempo { this, "float", "Tempo input",
-    //   MIN_FUNCTION {
-    //     m_tempo = args[0];
-    //     cout << "Received tempo: " << m_tempo << endl;
-    //     return {};
-    //   }
-    // };
-
     message<> list { this, "list", "Pitch input",
       MIN_FUNCTION {
         if (inlet == 1) {
@@ -146,22 +119,29 @@ public:
       }
     };
 
+    int note_on_count() {
+      int count = 0;
+      for (int i = 0; i < m_notes.size(); i++) {
+        if (m_notes[i] > 0) {
+          count++;
+        }
+      }
+      return count;
+    }
+
 private:
-    // Current tempo as measured in beats per minute
+    // Whether the internal clock is enabled
     bool m_on { false };
+    // Current tempo as measured in beats per minute
     double m_tempo { 0.0 };
+    // Where in the current pattern we are
     int m_index	{ 0 };
+    // The clock division
     int m_clock_div { 16 };
-    int m_tick_index { 0 };
+    // Which note values are on or off
     std::vector<int> m_notes = {
       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     };
-    std::vector<std::chrono::milliseconds> m_clock_signals {
-      std::chrono::milliseconds { 0 },
-      std::chrono::milliseconds { 0 },
-      std::chrono::milliseconds { 0 },
-    };
-    atoms m_sequence	{ 250.0, 250.0, 250.0, 250.0, 500.0, 500.0, 500.0, 500.0 };
 };
 
 MIN_EXTERNAL(arp99);
