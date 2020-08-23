@@ -27,14 +27,18 @@ public:
 
     timer<> metro { this,
         MIN_FUNCTION {
-            // TODO [bosgood] Figure out which note value to output here
-            // int note_value = note_on_value();
-            // note_out.send(note_value);
+            // Given the current pattern index, send the note which is on
+            auto notes_on = note_on_values();
+            auto note_value = 0;
+            if (notes_on.size() > 0) {
+              note_value = notes_on[m_index];
+            }
+            note_out.send(note_value);
             bang_out.send("bang");
 
             // Calculate millisecond delay interval from current beats per minute value
-            double ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
-            int pattern_note_count = note_on_count();
+            auto ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
+            auto pattern_note_count = notes_on.size();
             cout <<
               "arp tick" << " (" <<
               "tempo=" << m_tempo << ", " <<
@@ -44,8 +48,12 @@ public:
               ")" << endl
             ;
 
-            // Schedule the next metronome event after the time has elapsed
-            metro.delay(ms_delay);
+            // Schedule the next metronome event after the time has elapsed.
+            // 0 ms delay is probably never what we want, and indicative of a
+            // bug or bad environment, and spikes CPU load, so let's not do that.
+            if (ms_delay > 0) {
+              metro.delay(ms_delay);
+            }
 
             // Rotate through the pattern
             if (pattern_note_count == 0) {
@@ -101,7 +109,7 @@ public:
             auto velocity = (int)args[i+1];
             if (velocity > 0) {
               cout << "NOTEON " << pitch << endl;
-              m_notes[pitch] = 1;
+              m_notes[pitch] = velocity;
             } else {
               cout << "NOTEOFF " << pitch << endl;
               m_notes[pitch] = 0;
@@ -119,14 +127,15 @@ public:
       }
     };
 
-    int note_on_count() {
-      int count = 0;
+    // Return the MIDI values of the notes which are enabled
+    std::vector<int> note_on_values() {
+      auto notes_on = std::vector<int>();
       for (int i = 0; i < m_notes.size(); i++) {
         if (m_notes[i] > 0) {
-          count++;
+          notes_on.push_back(m_notes[i]);
         }
       }
-      return count;
+      return notes_on;
     }
 
 private:
@@ -138,7 +147,8 @@ private:
     int m_index	{ 0 };
     // The clock division
     int m_clock_div { 16 };
-    // Which note values are on or off
+    // Which note values are on or off, and their velocity.
+    // The zero value is equivalent to NOTE_OFF
     std::vector<int> m_notes = {
       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     };
