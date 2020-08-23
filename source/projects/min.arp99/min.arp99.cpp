@@ -44,6 +44,12 @@ public:
             auto notes = notes_on();
             auto pattern_note_count = notes.size();
 
+            // Send NOTE_OFF messages for any notes still on
+            for (auto note_value : m_notes_on) {
+              note_out.send({ note_value, 0 });
+            }
+            m_notes_on.clear();
+
             // No messages to send if no notes are on
             if (pattern_note_count == 0) {
               m_index = 0;
@@ -56,6 +62,7 @@ public:
             auto note_value = notes[m_index].note;
             auto velocity_value = notes[m_index].velocity;
             note_out.send({ note_value, velocity_value });
+            m_notes_on.push_back(note_value);
             bang_out.send("bang");
 
             cout <<
@@ -94,6 +101,15 @@ public:
         setter { MIN_FUNCTION {
             m_clock_div = args[0];
             cout << "Set clock div to " << m_clock_div << endl;
+            return args;
+        }}
+    };
+
+    attribute<int> gate_length {this, "gate_length", 16,
+        description {"Clock division"},
+        setter { MIN_FUNCTION {
+            m_gate_length = args[0];
+            cout << "Set clock div to " << m_gate_length << endl;
             return args;
         }}
     };
@@ -147,11 +163,15 @@ private:
     int m_index	{ 0 };
     // The clock division
     int m_clock_div { 16 };
+    // The number of ticks that each note will last for
+    int m_gate_length { 1 };
     // Which note values are on or off, and their velocity.
     // The zero value is equivalent to NOTE_OFF
     std::vector<int> m_notes = {
       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     };
+    // The notes which are still in a NOTE_ON state, MIDI-wise
+    std::vector<int> m_notes_on = { };
 };
 
 MIN_EXTERNAL(arp99);
