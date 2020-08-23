@@ -24,15 +24,35 @@ public:
 
     inlet<>  attr_in    { this, "(attr) attributes in" };
     inlet<>  pitch_in   { this, "(list) pitch in" };
-    inlet<>  cc_in      { this, "(list) cc in" };
 
     outlet<> bang_out		{ this, "(bang) triggers at according to specified pattern" };
     outlet<> note_out	{ this, "(list) the note and velocity value for the current bang" };
 
     timer<> metro { this,
         MIN_FUNCTION {
+            // Calculate millisecond delay interval from current beats per minute value
+            auto ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
+
+            // Schedule the next metronome event after the time has elapsed.
+            // 0 ms delay is probably never what we want, and indicative of a
+            // bug or bad environment, and spikes CPU load, so let's not do that.
+            if (ms_delay > 0) {
+              metro.delay(ms_delay);
+            }
+
             // Given the current pattern index, send the note which is on
             auto notes = notes_on();
+            auto pattern_note_count = notes.size();
+
+            // No messages to send if no notes are on
+            if (pattern_note_count == 0) {
+              m_index = 0;
+              return {};
+            } else {
+              // Rotate through the pattern
+              m_index = (m_index + 1) % pattern_note_count;
+            }
+
             auto velocity_value = 0;
             if (notes.size() > 0) {
               velocity_value = notes[m_index].velocity;
@@ -41,9 +61,6 @@ public:
             note_out.send(note_msg);
             bang_out.send("bang");
 
-            // Calculate millisecond delay interval from current beats per minute value
-            auto ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
-            auto pattern_note_count = notes.size();
             cout <<
               "arp tick" << " (" <<
               "tempo=" << m_tempo << ", " <<
@@ -54,20 +71,6 @@ public:
               "seq=" << m_index << "/" << pattern_note_count <<
               ")" << endl
             ;
-
-            // Schedule the next metronome event after the time has elapsed.
-            // 0 ms delay is probably never what we want, and indicative of a
-            // bug or bad environment, and spikes CPU load, so let's not do that.
-            if (ms_delay > 0) {
-              metro.delay(ms_delay);
-            }
-
-            // Rotate through the pattern
-            if (pattern_note_count == 0) {
-              m_index = 0;
-            } else {
-              m_index = (m_index + 1) % pattern_note_count;
-            }
 
             return {};
         }
