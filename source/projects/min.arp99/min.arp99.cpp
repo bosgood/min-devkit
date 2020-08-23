@@ -112,25 +112,18 @@ public:
 
     message<> list { this, "list", "Note input",
       MIN_FUNCTION {
-        if (inlet == 1) {
-          // Args are pairs of (Note, Velocity)
-          for (auto i = 0; i < args.size(); i += 2) {
-            auto note = args[i];
-            auto velocity = (int)args[i+1];
-            if (velocity > 0) {
-              cout << "NOTEON " << note << endl;
-              m_notes[note] = velocity;
-            } else {
-              cout << "NOTEOFF " << note << endl;
-              m_notes[note] = 0;
-            }
-          }
-        } else if (inlet == 2) {
-          // Args are pairs of (CC, Value)
-          for (auto i = 0; i < args.size(); i += 2) {
-            auto cc = args[i];
-            auto val = args[i+1];
-            cout << "CC " << cc << " val " << val << endl;
+        // Args are pairs of (Note, Velocity)
+        for (auto i = 0; i < args.size(); i += 2) {
+          auto note = args[i];
+          auto velocity = (int)args[i+1];
+          if (velocity > 0) {
+            m_notes[note] = velocity;
+            auto notes = notes_on();
+            cout << "NOTEON " << note << "(" << notes.size() << " total)"<< endl;
+          } else {
+            m_notes[note] = 0;
+            auto notes = notes_on();
+            cout << "NOTEOFF " << note << "(" << notes.size() << " total)"<< endl;
           }
         }
         return {};
