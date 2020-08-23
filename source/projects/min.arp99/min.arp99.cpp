@@ -18,44 +18,53 @@ public:
     MIN_AUTHOR	  	{ "bosgood" };
     MIN_RELATED	    { "min.beat.random, link.beat, metro, tempo, drunk" };
 
-    inlet<>  tempo_in   { this, "(int) tempo input" };
-    inlet<>  clock_in		{ this, "(float) clock signal input" };
+    inlet<>  attr_in    { this, "(attr) attributes in" };
     inlet<>  pitch_in   { this, "(list) pitch in" };
     inlet<>  cc_in      { this, "(list) cc in" };
+
     outlet<> bang_out		{ this, "(bang) triggers at according to specified pattern" };
     outlet<> pitch_out	{ this, "(float) the pitch value for the current bang" };
-    outlet<> tempo_out  { this, "(float) the current tempo (BPM)"};
 
-    // timer<> metro { this,
-    //     MIN_FUNCTION {
-    //         // double pitch = m_sequence[m_index];
-    //         pitch_out.send(0);
-    //         bang_out.send("bang");
-    //         tempo_out.send(m_tempo);
+    timer<> metro { this,
+        MIN_FUNCTION {
+            // double pitch = m_sequence[m_index];
+            // pitch_out.send(0);
+            bang_out.send("bang");
 
-    //         // Calculate millisecond delay interval from current beats per minute value
-    //         double ms_delay = m_tempo / m_clock_div / 60 * 1000;
-    //         cout << "arp tick (delay: " << ms_delay << "ms) " << endl;
-    //         metro.delay(ms_delay);
+            // Calculate millisecond delay interval from current beats per minute value
+            double ms_delay = m_tempo / (double)m_clock_div / 60.0 * 1000.0;
+            cout <<
+              "arp tick" << " (" <<
+              "tempo=" << m_tempo << ", " <<
+              "clock_div=" << m_clock_div << ", " <<
+              "delay=" << ms_delay << " ms" <<
+              ")" << endl
+            ;
+            metro.delay(ms_delay);
 
-    //         // m_index += 1;
+            // m_index += 1;
 
-    //         // if (m_index == m_sequence.size())
-    //         //   m_index = 0;
-    //         return {};
-    //     }
-    // };
+            // if (m_index == m_sequence.size())
+            //   m_index = 0;
+            return {};
+        }
+    };
 
-    // attribute<bool> on {this, "on", false,
-    //     description {"Turn on/off the internal timer."},
-    //     setter { MIN_FUNCTION {
-    //         if (args[0] == true)
-    //             metro.delay(0.0);    // fire the first one straight-away
-    //         else
-    //             metro.stop();
-    //         return args;
-    //     }}
-    // };
+    attribute<bool> on {this, "on", false,
+        description {"Turn on/off the internal timer."},
+        setter { MIN_FUNCTION {
+            if (args[0] == true && !m_on) {
+                cout << "Enabling internal timer" << endl;
+                metro.delay(0.0);    // fire the first one straight-away
+                m_on = true;
+            } else if (args[0] == false && m_on) {
+                cout << "Disabling internal timer" << endl;
+                metro.stop();
+                m_on = false;
+            }
+            return args;
+        }}
+    };
 
     attribute<int> clock_div {this, "clock_div", 16,
         description {"Clock division"},
@@ -66,13 +75,14 @@ public:
         }}
     };
 
-    // message<> toggle { this, "int", "Turn on/off the internal timer.",
-    //     MIN_FUNCTION {
-    //         on = args[0];
-    //         cout << "Toggled arp: " << on << endl;
-    //         return {};
-    //     }
-    // };
+    attribute<number> tempo {this, "tempo", 120.0,
+        description {"Tempo"},
+        setter { MIN_FUNCTION {
+            m_tempo = args[0];
+            cout << "Set tempo to " << m_tempo << endl;
+            return args;
+        }}
+    };
 
     // message<> clock { this, "bang", "Receive an incoming clock signal.",
     //     MIN_FUNCTION {
@@ -94,26 +104,24 @@ public:
     //     }
     // };
 
-    message<> clock { this, "int", "Receive an incoming clock signal.",
-        MIN_FUNCTION {
-          cout << "Clock signal received" << endl;
-          return {};
-        }
-    };
+    // message<> clock { this, "int", "Receive an incoming clock signal.",
+    //     MIN_FUNCTION {
+    //       cout << "Clock signal received" << endl;
+    //       return {};
+    //     }
+    // };
 
-    message<> tempo { this, "float", "Tempo input",
-      MIN_FUNCTION {
-        if (inlet == 0) {
-          m_tempo = args[0];
-          cout << "Received tempo: " << m_tempo << endl;
-        }
-        return {};
-      }
-    };
+    // message<> tempo { this, "float", "Tempo input",
+    //   MIN_FUNCTION {
+    //     m_tempo = args[0];
+    //     cout << "Received tempo: " << m_tempo << endl;
+    //     return {};
+    //   }
+    // };
 
     message<> list { this, "list", "Pitch input",
       MIN_FUNCTION {
-        if (inlet == 2) {
+        if (inlet == 1) {
           // Args are pairs of (Pitch, Velocity)
           for (auto i = 0; i < args.size(); i += 2) {
             auto pitch = args[i];
@@ -126,7 +134,7 @@ public:
               m_notes[pitch] = 0;
             }
           }
-        } else if (inlet == 3) {
+        } else if (inlet == 2) {
           // Args are pairs of (CC, Value)
           for (auto i = 0; i < args.size(); i += 2) {
             auto cc = args[i];
@@ -140,7 +148,8 @@ public:
 
 private:
     // Current tempo as measured in beats per minute
-    double m_tempo { 120.0 };
+    bool m_on { false };
+    double m_tempo { 0.0 };
     int m_index	{ 0 };
     int m_clock_div { 16 };
     int m_tick_index { 0 };
